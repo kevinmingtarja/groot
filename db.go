@@ -41,7 +41,7 @@ func (db Database) ErrorLog(id int) (ErrorLog, error) {
 	var log ErrorLog
 
 	row := db.Conn.QueryRow("SELECT * FROM error_logs WHERE id = ?", id)
-	if err := row.Scan(&log.ID, &log.Time, &log.StackTrace, &log.UserAgent, &log.HTTPCode, &log.AppName, &log.FunctionName); err != nil {
+	if err := row.Scan(&log.ID, &log.Time, &log.RequestURL, &log.StackTrace, &log.UserAgent, &log.HTTPCode, &log.AppName, &log.FunctionName); err != nil {
 		if err == sql.ErrNoRows {
 			return log, fmt.Errorf("no such log found")
 		}
@@ -50,3 +50,5 @@ func (db Database) ErrorLog(id int) (ErrorLog, error) {
 
 	return log, nil
 }
+
+func (db Database)
