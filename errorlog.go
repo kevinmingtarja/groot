@@ -5,6 +5,7 @@ import "time"
 type ErrorLog struct {
 	ID           int
 	Time         time.Time
+	RequestURL   string
 	StackTrace   string
 	UserAgent    string
 	HTTPCode     int

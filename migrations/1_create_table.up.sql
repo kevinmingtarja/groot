@@ -1,7 +1,8 @@
 CREATE TABLE error_logs
 (
-    id            INTEGER PRIMARY KEY,
+    id            SERIAL PRIMARY KEY,
     time          TIME,
+    request_url   VARCHAR(255),
     stack_trace   VARCHAR(3000),
     user_agent    VARCHAR(255),
     http_code     INTEGER,
