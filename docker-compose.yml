@@ -1,0 +1,9 @@
+version: "1"
+services:
+  postgresql:
+    image: "postgres:13"
+    ports:
+      - 5432:5432
+    restart: always
+    env_file:
+      - .env
