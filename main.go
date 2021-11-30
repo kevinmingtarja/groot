@@ -35,7 +35,7 @@ func main() {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/logs/url", env.getLogsByURLHandler).Methods("POST")
-	r.HandleFunc("/logs", env.createLogHandler).Methods("POST")
+	r.HandleFunc("/logs", env.LogHandler).Methods("POST")
 	r.HandleFunc("/chat", env.setChatIDHandler).Methods("POST")
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "HELLO!")
@@ -75,24 +75,36 @@ func (env *Env) getLogsByURLHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, string(j))
 }
 
-func (env *Env) createLogHandler(w http.ResponseWriter, r *http.Request) {
+func (env *Env) LogHandler(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 
-	var b ErrorLog
-	err := decoder.Decode(&b)
+	var errorLog ErrorLog
+	err := decoder.Decode(&errorLog)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, http.StatusText(500), 500)
 		return
 	}
 
-	err = env.CreateErrorLog(&b)
+	err = env.CreateErrorLog(&errorLog)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, http.StatusText(500), 500)
 		return
 	}
+
 	// Call bot to send message
+	chatID, err := env.ChatID(errorLog.AppName)
+	if err != nil {
+		log.Println(err)
+		if chatID == 0 {
+			http.Error(w, "No Chat ID under the given app name found. Please map it first using the /chat endpoint.", 400)
+			return
+		}
+		http.Error(w, http.StatusText(500), 500)
+		return
+	}
+	err = env.SendErrorMessage(chatID, &errorLog)
 
 	fmt.Fprintf(w, "Success")
 }

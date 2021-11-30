@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"os"
 )
@@ -15,12 +16,23 @@ func InitializeBot() (*tgbotapi.BotAPI, error) {
 	return bot, nil
 }
 
-func (env *Env) SendMessage(chatID int, text string) error {
+func (env *Env) sendMessage(chatID int, text string) error {
 	// Create new message
 	msg := tgbotapi.NewMessage(int64(chatID), text)
 
 	// Send message
 	_, err := env.Bot.Send(msg)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (env *Env) SendErrorMessage(chatID int, e *ErrorLog) error {
+	errorMessage := fmt.Sprintf("Error %d at %s endpoint in app %s", e.HTTPCode, e.RequestURL, e.AppName)
+
+	err := env.sendMessage(chatID, errorMessage)
 	if err != nil {
 		return err
 	}

@@ -87,7 +87,7 @@ func (env *Env) ChatID(appName string) (int, error) {
 
 	query := "SELECT chat_id FROM chat_ids WHERE app_name = $1"
 	row := env.DB.QueryRow(query, appName)
-	if err := row.Scan(chatID); err != nil {
+	if err := row.Scan(&chatID); err != nil {
 		if err == sql.ErrNoRows {
 			return chatID, fmt.Errorf("no such chat found")
 		}
