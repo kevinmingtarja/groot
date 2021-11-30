@@ -9,6 +9,7 @@ import (
 	"github.com/joho/godotenv"
 	"log"
 	"net/http"
+	"strconv"
 )
 
 type Env struct {
@@ -36,6 +37,7 @@ func main() {
 
 	r.HandleFunc("/logs/url", env.getLogsByURLHandler).Methods("POST")
 	r.HandleFunc("/logs", env.LogHandler).Methods("POST")
+	r.HandleFunc("/logs/{id}", env.getLogHandler).Methods("GET")
 	r.HandleFunc("/chat", env.setChatIDHandler).Methods("POST")
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "HELLO!")
@@ -68,7 +70,7 @@ func (env *Env) getLogsByURLHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(500), 500)
 		return
 	}
-	res := LogResponse{logs}
+	res := LogsResponse{logs}
 
 	w.Header().Set("Content-Type", "application/json")
 	j, _ := json.Marshal(res)
@@ -86,12 +88,13 @@ func (env *Env) LogHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = env.CreateErrorLog(&errorLog)
+	id, err := env.CreateErrorLog(&errorLog)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, http.StatusText(500), 500)
 		return
 	}
+	errorLog.ID = id
 
 	// Call bot to send message
 	chatID, err := env.ChatID(errorLog.AppName)
@@ -128,4 +131,32 @@ func (env *Env) setChatIDHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprintf(w, "Chat ID succesfully mapped.")
+}
+
+func (env *Env) getLogHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	i, err := strconv.Atoi(id)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, http.StatusText(400), 400)
+		return
+	}
+
+	errLog, err := env.ErrorLog(i)
+	if err != nil {
+		log.Println(err)
+		if errLog.ID == 0 {
+			http.Error(w, err.Error(), 400)
+			return
+		}
+		http.Error(w, http.StatusText(500), 500)
+		return
+	}
+
+	res := LogResponse{errLog}
+	w.Header().Set("Content-Type", "application/json")
+	j, _ := json.Marshal(res)
+	fmt.Fprintf(w, string(j))
 }

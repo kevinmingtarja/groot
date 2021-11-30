@@ -3,7 +3,7 @@ package main
 import "time"
 
 type ErrorLog struct {
-	ID           *int      `json:"id"`
+	ID           int       `json:"id"`
 	Time         time.Time `json:"time"`
 	RequestURL   string    `json:"request_url"`
 	StackTrace   *string   `json:"stack_trace"`
