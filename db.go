@@ -14,7 +14,7 @@ const (
 	port = 5432
 )
 
-func Initialize() (*Database, error) {
+func InitializeDB() (*sql.DB, error) {
 	psqlInfo := fmt.Sprintf(
 		"host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 		host,
@@ -22,13 +22,12 @@ func Initialize() (*Database, error) {
 		os.Getenv("POSTGRES_USER"),
 		os.Getenv("POSTGRES_PASSWORD"),
 		os.Getenv("POSTGRES_DB"))
-	conn, err := sql.Open("postgres", psqlInfo)
+	db, err := sql.Open("postgres", psqlInfo)
 	if err != nil {
 		return nil, err
 	}
 
-	db := &Database{conn}
-	err = db.Conn.Ping()
+	err = db.Ping()
 	if err != nil {
 		return db, err
 	}
@@ -37,10 +36,10 @@ func Initialize() (*Database, error) {
 	return db, nil
 }
 
-func (db *Database) ErrorLog(id int) (ErrorLog, error) {
+func (env *Env) ErrorLog(id int) (ErrorLog, error) {
 	var errorLog ErrorLog
 
-	row := db.Conn.QueryRow("SELECT * FROM error_logs WHERE id = $1", id)
+	row := env.DB.QueryRow("SELECT * FROM error_logs WHERE id = $1", id)
 	if err := row.Scan(&errorLog.ID, &errorLog.Time, &errorLog.RequestURL, &errorLog.StackTrace, &errorLog.UserAgent, &errorLog.HTTPCode, &errorLog.AppName, &errorLog.FunctionName); err != nil {
 		if err == sql.ErrNoRows {
 			return errorLog, fmt.Errorf("no such errorLog found")
@@ -51,10 +50,10 @@ func (db *Database) ErrorLog(id int) (ErrorLog, error) {
 	return errorLog, nil
 }
 
-func (db *Database) ErrorLogByURL(url string) ([]ErrorLog, error) {
+func (env *Env) ErrorLogByURL(url string) ([]ErrorLog, error) {
 	logs := []ErrorLog{} // this is to prevent a nil slice which prevents a null response
 
-	rows, err := db.Conn.Query("SELECT * FROM error_logs WHERE request_url = $1", url)
+	rows, err := env.DB.Query("SELECT * FROM error_logs WHERE request_url = $1", url)
 	if err != nil {
 		return nil, fmt.Errorf("ErrorLogByURL - Query Error: %s", err.Error())
 	}
@@ -71,10 +70,36 @@ func (db *Database) ErrorLogByURL(url string) ([]ErrorLog, error) {
 	return logs, nil
 }
 
-func (db *Database) CreateErrorLog(e *ErrorLog) error {
+func (env *Env) CreateErrorLog(e *ErrorLog) error {
 	query := "INSERT INTO error_logs (time, request_url, stack_trace, user_agent, http_code, app_name, function_name) " +
 		"VALUES ($1, $2, $3, $4, $5, $6, $7)"
-	res, err := db.Conn.Exec(query, time.Now(), e.RequestURL, e.StackTrace, e.UserAgent, e.HTTPCode, e.AppName, e.FunctionName)
+	res, err := env.DB.Exec(query, time.Now(), e.RequestURL, e.StackTrace, e.UserAgent, e.HTTPCode, e.AppName, e.FunctionName)
+	if err != nil {
+		return err
+	}
+	fmt.Println(res)
+
+	return nil
+}
+
+func (env *Env) ChatID(appName string) (int, error) {
+	var chatID int
+
+	query := "SELECT chat_id FROM chat_ids WHERE app_name = $1"
+	row := env.DB.QueryRow(query, appName)
+	if err := row.Scan(chatID); err != nil {
+		if err == sql.ErrNoRows {
+			return chatID, fmt.Errorf("no such chat found")
+		}
+		return chatID, fmt.Errorf(err.Error())
+	}
+
+	return chatID, nil
+}
+
+func (env *Env) SetChatID(c *Chat) error {
+	query := "INSERT INTO chat_ids (app_name, chat_id) VALUES ($1, $2) ON CONFLICT (app_name) DO UPDATE SET chat_id = $2"
+	res, err := env.DB.Exec(query, c.AppName, c.ChatID)
 	if err != nil {
 		return err
 	}

@@ -4,14 +4,16 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	"log"
 	"net/http"
 )
 
-type Database struct {
-	Conn *sql.DB
+type Env struct {
+	DB  *sql.DB
+	Bot *tgbotapi.BotAPI
 }
 
 func main() {
@@ -20,16 +22,21 @@ func main() {
 		log.Fatalln("Error loading .env file")
 	}
 
-	db, err := Initialize()
+	db, err := InitializeDB()
 	if err != nil {
 		log.Fatalln("Error establishing connection to database.")
 	}
-	// initializeBot()
+	bot, err := InitializeBot()
+	if err != nil {
+		log.Fatalln("Error initializing telegram bot.")
+	}
+	env := &Env{db, bot}
 
 	r := mux.NewRouter()
 
-	r.HandleFunc("/logs/url", db.getLogsByURL).Methods("POST")
-	r.HandleFunc("/logs", db.createLog).Methods("POST")
+	r.HandleFunc("/logs/url", env.getLogsByURLHandler).Methods("POST")
+	r.HandleFunc("/logs", env.createLogHandler).Methods("POST")
+	r.HandleFunc("/chat", env.setChatIDHandler).Methods("POST")
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "HELLO!")
 	})
@@ -40,7 +47,7 @@ func main() {
 	}
 }
 
-func (db *Database) getLogsByURL(w http.ResponseWriter, r *http.Request) {
+func (env *Env) getLogsByURLHandler(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 
 	var b struct{ URL string }
@@ -55,7 +62,7 @@ func (db *Database) getLogsByURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logs, err := db.ErrorLogByURL(b.URL)
+	logs, err := env.ErrorLogByURL(b.URL)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, http.StatusText(500), 500)
@@ -68,7 +75,7 @@ func (db *Database) getLogsByURL(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, string(j))
 }
 
-func (db *Database) createLog(w http.ResponseWriter, r *http.Request) {
+func (env *Env) createLogHandler(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 
 	var b ErrorLog
@@ -79,7 +86,7 @@ func (db *Database) createLog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = db.CreateErrorLog(&b)
+	err = env.CreateErrorLog(&b)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, http.StatusText(500), 500)
@@ -88,4 +95,25 @@ func (db *Database) createLog(w http.ResponseWriter, r *http.Request) {
 	// Call bot to send message
 
 	fmt.Fprintf(w, "Success")
+}
+
+func (env *Env) setChatIDHandler(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+
+	var b Chat
+	err := decoder.Decode(&b)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, http.StatusText(500), 500)
+		return
+	}
+
+	err = env.SetChatID(&b)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, http.StatusText(500), 500)
+		return
+	}
+
+	fmt.Fprintf(w, "Chat ID succesfully mapped.")
 }

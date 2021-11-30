@@ -21,3 +21,13 @@ type ErrorLogStore interface {
 	ErrorLogs() ([]ErrorLog, error)
 	CreateErrorLog(e *ErrorLog) error
 }
+
+type Chat struct {
+	AppName string `json:"app_name"`
+	ChatID  int    `json:"chat_id"`
+}
+
+type ChatStore interface {
+	ChatID(appName string) (int, error)
+	SetChatID(appName string, chatID int) error
+}
