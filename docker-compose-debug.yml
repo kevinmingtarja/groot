@@ -1,0 +1,34 @@
+version: "3.8"
+services:
+  app:
+    container_name: dockerdev
+    build:
+      context: ./
+      dockerfile: Dockerfile.debug
+    ports:
+      - "8080:8080"
+      - "40000:40000"
+    restart: on-failure
+    depends_on:
+      - postgresql
+    networks:
+      - fullstack
+    security_opt:
+      - "seccomp:unconfined"
+    cap_add:
+      - SYS_PTRACE
+
+  postgresql:
+    container_name: dockerdev-db
+    image: "postgres:13"
+    ports:
+      - "5432:5432"
+    restart: always
+    env_file:
+      - .env
+    networks:
+      - fullstack
+
+networks:
+  fullstack:
+    driver: bridge
