@@ -78,4 +78,14 @@ func (db *Database) createLog(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(500), 500)
 		return
 	}
+
+	err = db.CreateErrorLog(&b)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, http.StatusText(500), 500)
+		return
+	}
+	// Call bot to send message
+
+	fmt.Fprintf(w, "Success")
 }

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -68,4 +69,16 @@ func (db *Database) ErrorLogByURL(url string) ([]ErrorLog, error) {
 	}
 
 	return logs, nil
+}
+
+func (db *Database) CreateErrorLog(e *ErrorLog) error {
+	query := "INSERT INTO error_logs (time, request_url, stack_trace, user_agent, http_code, app_name, function_name) " +
+		"VALUES ($1, $2, $3, $4, $5, $6, $7)"
+	res, err := db.Conn.Exec(query, time.Now(), e.RequestURL, e.StackTrace, e.UserAgent, e.HTTPCode, e.AppName, e.FunctionName)
+	if err != nil {
+		return err
+	}
+	fmt.Println(res)
+
+	return nil
 }
