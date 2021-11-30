@@ -25,7 +25,6 @@ func Initialize() (*Database, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
 
 	db := &Database{conn}
 	err = db.Conn.Ping()
@@ -37,18 +36,36 @@ func Initialize() (*Database, error) {
 	return db, nil
 }
 
-func (db Database) ErrorLog(id int) (ErrorLog, error) {
-	var log ErrorLog
+func (db *Database) ErrorLog(id int) (ErrorLog, error) {
+	var errorLog ErrorLog
 
-	row := db.Conn.QueryRow("SELECT * FROM error_logs WHERE id = ?", id)
-	if err := row.Scan(&log.ID, &log.Time, &log.RequestURL, &log.StackTrace, &log.UserAgent, &log.HTTPCode, &log.AppName, &log.FunctionName); err != nil {
+	row := db.Conn.QueryRow("SELECT * FROM error_logs WHERE id = $1", id)
+	if err := row.Scan(&errorLog.ID, &errorLog.Time, &errorLog.RequestURL, &errorLog.StackTrace, &errorLog.UserAgent, &errorLog.HTTPCode, &errorLog.AppName, &errorLog.FunctionName); err != nil {
 		if err == sql.ErrNoRows {
-			return log, fmt.Errorf("no such log found")
+			return errorLog, fmt.Errorf("no such errorLog found")
 		}
-		return log, fmt.Errorf(err.Error())
+		return errorLog, fmt.Errorf(err.Error())
 	}
 
-	return log, nil
+	return errorLog, nil
 }
 
-func (db Database)
+func (db *Database) ErrorLogByURL(url string) ([]ErrorLog, error) {
+	logs := []ErrorLog{} // this is to prevent a nil slice which prevents a null response
+
+	rows, err := db.Conn.Query("SELECT * FROM error_logs WHERE request_url = $1", url)
+	if err != nil {
+		return nil, fmt.Errorf("ErrorLogByURL - Query Error: %s", err.Error())
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var errorLog ErrorLog
+		if err := rows.Scan(&errorLog.ID, &errorLog.Time, &errorLog.RequestURL, &errorLog.StackTrace, &errorLog.UserAgent, &errorLog.HTTPCode, &errorLog.AppName, &errorLog.FunctionName); err != nil {
+			return nil, fmt.Errorf("ErrorLogByURL - Scan Error: %s", err.Error())
+		}
+		logs = append(logs, errorLog)
+	}
+
+	return logs, nil
+}
