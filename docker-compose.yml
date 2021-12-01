@@ -9,6 +9,8 @@ services:
       - postgresql
     networks:
       - fullstack
+    env_file:
+      - .env
 
   postgresql:
     image: "postgres:13"
