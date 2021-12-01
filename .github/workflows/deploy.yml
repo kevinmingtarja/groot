@@ -15,4 +15,6 @@ jobs:
           webhook_type: 'json-extended'
           webhook_url: ${{ secrets.WEBHOOK_URL }}
           webhook_secret: ${{ secrets.WEBHOOK_SECRET }}
+          verbose: false
+          silent: true
           verify_ssl: false
