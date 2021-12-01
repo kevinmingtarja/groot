@@ -40,7 +40,7 @@ func main() {
 	r.HandleFunc("/logs/{id}", env.getLogHandler).Methods("GET")
 	r.HandleFunc("/chat", env.setChatIDHandler).Methods("POST")
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "Welcome to groot!!!")
+		fmt.Fprintf(w, "Welcome")
 	})
 
 	err = http.ListenAndServe(":8080", r)
