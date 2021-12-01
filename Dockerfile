@@ -1,5 +1,5 @@
 # Start from golang base image
-FROM golang:alpine as builder
+FROM golang:1.16.8-alpine as builder
 
 # Install git.
 # Git is required for fetching the dependencies.
