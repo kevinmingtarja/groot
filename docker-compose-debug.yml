@@ -29,6 +29,18 @@ services:
     networks:
       - fullstack
 
+  migrate:
+    image: migrate/migrate
+    networks:
+      - fullstack
+    volumes:
+      - /Users/kevin/git/groot/migrations:/migrations
+    command: [ "-path", "/migrations", "-database", "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgresql:5432/${POSTGRES_DB}?sslmode=disable", "up" ]
+    links:
+      - postgresql
+    depends_on:
+      - postgresql
+
 networks:
   fullstack:
     driver: bridge
