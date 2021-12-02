@@ -5,7 +5,7 @@ on:
     branches: [ master ]
 
 jobs:
-  build:
+  build-push-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Check Out Repo
@@ -42,9 +42,6 @@ jobs:
       - name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
 
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
       - name: Call deployment webhook
         uses: distributhor/workflow-webhook@v2
         env:
