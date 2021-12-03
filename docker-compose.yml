@@ -11,7 +11,7 @@ services:
       - fullstack
     env_file:
       - .env
-    # Starts up 5 replicas of the same image
+    # Starts up 2 replicas of the same image
     deploy:
       replicas: 2
 
