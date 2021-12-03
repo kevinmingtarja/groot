@@ -1,0 +1,18 @@
+#!/bin/bash
+
+GREEN='\033[0;32m'
+BLUE='\033[0;36m'
+NC='\033[0m'
+
+cd ..
+cd groot
+
+echo -e "\n?~_~T~A ${BLUE}Fetching latest migrations${NC}"
+git fetch --all
+git checkout master
+git pull
+
+echo -e "?~_~O~C?~@~M?~Y~B?~O ${BLUE}Running migrations${NC}"
+docker run -v /home/ec2-user/groot/migrations:/migrations --network host migrate/migrate -path=/migrations/ -database "postgresql://DB_USERNAME:DB_PASSWORD@localhost:DB_PORT/DB_NAME?sslmode=disable" up
+
+echo -e "?~_~Z~@ ${GREEN}Migration script completed${NC}"

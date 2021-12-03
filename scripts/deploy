@@ -1,0 +1,33 @@
+#!/bin/bash
+
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+BLUE='\033[0;36m'
+YELLOW='`033[1;33m'
+NC='\033[0m'
+
+echo -e "?~Z~Y?~O  ${BLUE}Executing deployment script:${NC}"
+
+cd ..
+cd deployment
+
+echo -e "\n?~_~[|   ${BLUE}Pulling latest images and rebuilding containers${NC}"
+docker-compose pull && docker-compose up --build -d
+
+if [ $? -eq 0 ]; then
+        echo -e "?~_~Z~@ ${GREEN}Deployment succesful${NC}"
+else
+        echo -e "?~Z| ?~O ${YELLOW}Restarting containers${NC}"
+        docker-compose build
+        docker-compose down
+        docker-compose up -d
+
+        if [ $? -eq 0 ]; then
+                echo -e "?~_~Z~@ ${GREEN}Deployment succesful${NC}"
+        else
+                echo -e "?~]~W?~O ${RED}Deployment failed${NC}"
+        fi
+fi
+
+echo -e "\n?~Z~Y?~O  ${BLUE}Executing migration script:${NC}"
+./migrate

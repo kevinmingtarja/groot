@@ -79,7 +79,6 @@ func (env *Env) CreateErrorLog(e *ErrorLog) (int, error) {
 	if err != nil {
 		return id, err
 	}
-	fmt.Println(id)
 
 	return id, nil
 }
