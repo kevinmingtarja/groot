@@ -67,112 +67,120 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.router.ServeHTTP(w, r)
 }
 
-func (s *server) handleLogsGetByURL(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
+func (s *server) handleLogsGetByURL() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		decoder := json.NewDecoder(r.Body)
 
-	var b struct{ URL string }
-	err := decoder.Decode(&b)
-	if err != nil {
-		log.Println(err)
-		http.Error(w, http.StatusText(500), 500)
-		return
-	}
-	if b.URL == "" {
-		http.Error(w, http.StatusText(400), 400)
-		return
-	}
-
-	logs, err := s.ErrorLogByURL(b.URL)
-	if err != nil {
-		log.Println(err)
-		http.Error(w, http.StatusText(500), 500)
-		return
-	}
-	res := LogsResponse{logs}
-
-	w.Header().Set("Content-Type", "application/json")
-	j, _ := json.Marshal(res)
-	fmt.Fprintf(w, string(j))
-}
-
-func (s *server) handleLogsCreate(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-
-	var errorLog ErrorLog
-	err := decoder.Decode(&errorLog)
-	if err != nil {
-		log.Println(err)
-		http.Error(w, http.StatusText(500), 500)
-		return
-	}
-
-	id, err := s.CreateErrorLog(&errorLog)
-	if err != nil {
-		log.Println(err)
-		http.Error(w, http.StatusText(500), 500)
-		return
-	}
-	errorLog.ID = id
-
-	// Call bot to send message
-	chatID, err := s.ChatID(errorLog.AppName)
-	if err != nil {
-		log.Println(err)
-		if chatID == 0 {
-			http.Error(w, "No Chat ID under the given app name found. Please map it first using the /chat endpoint.", 400)
+		var b struct{ URL string }
+		err := decoder.Decode(&b)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, http.StatusText(500), 500)
 			return
 		}
-		http.Error(w, http.StatusText(500), 500)
-		return
-	}
-	err = s.SendErrorMessage(chatID, &errorLog)
+		if b.URL == "" {
+			http.Error(w, http.StatusText(400), 400)
+			return
+		}
 
-	fmt.Fprintf(w, "Success")
+		logs, err := s.ErrorLogByURL(b.URL)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, http.StatusText(500), 500)
+			return
+		}
+		res := LogsResponse{logs}
+
+		w.Header().Set("Content-Type", "application/json")
+		j, _ := json.Marshal(res)
+		fmt.Fprintf(w, string(j))
+	}
 }
 
-func (s *server) handleChatSetID(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
+func (s *server) handleLogsCreate() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		decoder := json.NewDecoder(r.Body)
 
-	var b Chat
-	err := decoder.Decode(&b)
-	if err != nil {
-		http.Error(w, http.StatusText(500), 500)
-		return
+		var errorLog ErrorLog
+		err := decoder.Decode(&errorLog)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, http.StatusText(500), 500)
+			return
+		}
+
+		id, err := s.CreateErrorLog(&errorLog)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, http.StatusText(500), 500)
+			return
+		}
+		errorLog.ID = id
+
+		// Call bot to send message
+		chatID, err := s.ChatID(errorLog.AppName)
+		if err != nil {
+			log.Println(err)
+			if chatID == 0 {
+				http.Error(w, "No Chat ID under the given app name found. Please map it first using the /chat endpoint.", 400)
+				return
+			}
+			http.Error(w, http.StatusText(500), 500)
+			return
+		}
+		err = s.SendErrorMessage(chatID, &errorLog)
+
+		fmt.Fprintf(w, "Success")
 	}
-
-	err = s.SetChatID(&b)
-	if err != nil {
-		http.Error(w, err.Error(), 400)
-		return
-	}
-
-	fmt.Fprintf(w, "Chat ID succesfully mapped.")
 }
 
-func (s *server) handleLogsGetByID(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
+func (s *server) handleChatSetID() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		decoder := json.NewDecoder(r.Body)
 
-	i, err := strconv.Atoi(id)
-	if err != nil {
-		log.Println(err)
-		http.Error(w, http.StatusText(400), 400)
-		return
-	}
+		var b Chat
+		err := decoder.Decode(&b)
+		if err != nil {
+			http.Error(w, http.StatusText(500), 500)
+			return
+		}
 
-	errLog, err := s.ErrorLog(i)
-	if err != nil {
-		log.Println(err)
-		if errLog.ID == 0 {
+		err = s.SetChatID(&b)
+		if err != nil {
 			http.Error(w, err.Error(), 400)
 			return
 		}
-		http.Error(w, http.StatusText(500), 500)
-		return
-	}
 
-	res := LogResponse{errLog}
-	w.Header().Set("Content-Type", "application/json")
-	j, _ := json.Marshal(res)
-	fmt.Fprintf(w, string(j))
+		fmt.Fprintf(w, "Chat ID succesfully mapped.")
+	}
+}
+
+func (s *server) handleLogsGetByID() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		id := vars["id"]
+
+		i, err := strconv.Atoi(id)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, http.StatusText(400), 400)
+			return
+		}
+
+		errLog, err := s.ErrorLog(i)
+		if err != nil {
+			log.Println(err)
+			if errLog.ID == 0 {
+				http.Error(w, err.Error(), 400)
+				return
+			}
+			http.Error(w, http.StatusText(500), 500)
+			return
+		}
+
+		res := LogResponse{errLog}
+		w.Header().Set("Content-Type", "application/json")
+		j, _ := json.Marshal(res)
+		fmt.Fprintf(w, string(j))
+	}
 }
