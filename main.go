@@ -9,6 +9,7 @@ import (
 	"github.com/joho/godotenv"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 )
 
@@ -18,18 +19,25 @@ type Env struct {
 }
 
 func main() {
+	if err := run(); err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	err := godotenv.Load(".env")
 	if err != nil {
-		log.Fatalln("Error loading .env file")
+		return err
 	}
 
 	db, err := InitializeDB()
 	if err != nil {
-		log.Fatalln("Error establishing connection to database.")
+		return err
 	}
 	bot, err := InitializeBot()
 	if err != nil {
-		log.Fatalln("Error initializing telegram bot.")
+		return err
 	}
 	env := &Env{db, bot}
 
@@ -45,10 +53,7 @@ func main() {
 		fmt.Fprintf(w, "Hello!")
 	})
 
-	err = http.ListenAndServe(":8080", r)
-	if err != nil {
-		log.Fatalln("Port is used.")
-	}
+	return http.ListenAndServe(":8080", r)
 }
 
 func (env *Env) getLogsByURLHandler(w http.ResponseWriter, r *http.Request) {
