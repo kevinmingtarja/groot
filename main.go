@@ -67,7 +67,7 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.router.ServeHTTP(w, r)
 }
 
-func (s *server) getLogsByURLHandler(w http.ResponseWriter, r *http.Request) {
+func (s *server) handleLogsGetByURL(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 
 	var b struct{ URL string }
@@ -95,7 +95,7 @@ func (s *server) getLogsByURLHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, string(j))
 }
 
-func (s *server) LogHandler(w http.ResponseWriter, r *http.Request) {
+func (s *server) handleLogsCreate(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 
 	var errorLog ErrorLog
@@ -130,7 +130,7 @@ func (s *server) LogHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Success")
 }
 
-func (s *server) setChatIDHandler(w http.ResponseWriter, r *http.Request) {
+func (s *server) handleChatSetID(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 
 	var b Chat
@@ -149,7 +149,7 @@ func (s *server) setChatIDHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Chat ID succesfully mapped.")
 }
 
-func (s *server) getLogHandler(w http.ResponseWriter, r *http.Request) {
+func (s *server) handleLogsGetByID(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
