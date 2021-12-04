@@ -51,6 +51,8 @@ services:
       - postgresql
     depends_on:
       - postgresql
+      - main
+      - nginx
 
 networks:
   fullstack:

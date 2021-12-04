@@ -125,15 +125,13 @@ func (env *Env) setChatIDHandler(w http.ResponseWriter, r *http.Request) {
 	var b Chat
 	err := decoder.Decode(&b)
 	if err != nil {
-		log.Println(err)
 		http.Error(w, http.StatusText(500), 500)
 		return
 	}
 
 	err = env.SetChatID(&b)
 	if err != nil {
-		log.Println(err)
-		http.Error(w, http.StatusText(500), 500)
+		http.Error(w, err.Error(), 400)
 		return
 	}
 

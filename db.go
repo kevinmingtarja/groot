@@ -99,12 +99,15 @@ func (env *Env) ChatID(appName string) (int, error) {
 }
 
 func (env *Env) SetChatID(c *Chat) error {
+	if c.AppName == "" {
+		return fmt.Errorf("app_name cannot be empty")
+	}
+
 	query := "INSERT INTO chat_ids (app_name, chat_id) VALUES ($1, $2) ON CONFLICT (app_name) DO UPDATE SET chat_id = $2"
-	res, err := env.DB.Exec(query, c.AppName, c.ChatID)
+	_, err := env.DB.Exec(query, c.AppName, c.ChatID)
 	if err != nil {
 		return err
 	}
-	fmt.Println(res)
 
 	return nil
 }
