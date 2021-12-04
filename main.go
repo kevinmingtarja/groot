@@ -7,16 +7,12 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
+	"github.com/pkg/errors"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
 )
-
-type Env struct {
-	DB  *sql.DB
-	Bot *tgbotapi.BotAPI
-}
 
 func main() {
 	if err := run(); err != nil {
@@ -28,35 +24,50 @@ func main() {
 func run() error {
 	err := godotenv.Load(".env")
 	if err != nil {
-		return err
+		return errors.Wrap(err, "environment variables")
 	}
 
-	db, err := InitializeDB()
+	db, err := setupDatabase()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "setup database")
 	}
-	bot, err := InitializeBot()
+
+	bot, err := setupBot()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "setup bot")
 	}
-	env := &Env{db, bot}
 
-	r := mux.NewRouter()
+	srv := newServer()
+	srv.db, srv.bot = db, bot
 
-	r.HandleFunc("/logs/url", env.getLogsByURLHandler).Methods("POST")
-	r.HandleFunc("/logs", env.LogHandler).Methods("POST")
-	r.HandleFunc("/logs/{id}", env.getLogHandler).Methods("GET")
-	r.HandleFunc("/chat", env.setChatIDHandler).Methods("POST")
-	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println(r.Method, r.RequestURI)
-
-		fmt.Fprintf(w, "Hello!")
-	})
-
-	return http.ListenAndServe(":8080", r)
+	return http.ListenAndServe(":8080", srv)
 }
 
-func (env *Env) getLogsByURLHandler(w http.ResponseWriter, r *http.Request) {
+// The server type contains the dependencies of our server.
+type server struct {
+	router *mux.Router
+	db     *sql.DB
+	bot    *tgbotapi.BotAPI
+}
+
+// newServer instantiates a server type and sets up its routes.
+// Dependencies are not set up here so that it is easier to test.
+func newServer() *server {
+	srv := &server{
+		router: mux.NewRouter(),
+	}
+	srv.routes()
+	return srv
+}
+
+// Implementing ServeHTTP turns the server type into a http.Handler.
+// Hence, server can be used wherever http.Handler can (e.g. http.ListenAndServe).
+// Inside, we simply pass the execution to the router.
+func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.router.ServeHTTP(w, r)
+}
+
+func (s *server) getLogsByURLHandler(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 
 	var b struct{ URL string }
@@ -71,7 +82,7 @@ func (env *Env) getLogsByURLHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logs, err := env.ErrorLogByURL(b.URL)
+	logs, err := s.ErrorLogByURL(b.URL)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, http.StatusText(500), 500)
@@ -84,7 +95,7 @@ func (env *Env) getLogsByURLHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, string(j))
 }
 
-func (env *Env) LogHandler(w http.ResponseWriter, r *http.Request) {
+func (s *server) LogHandler(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 
 	var errorLog ErrorLog
@@ -95,7 +106,7 @@ func (env *Env) LogHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, err := env.CreateErrorLog(&errorLog)
+	id, err := s.CreateErrorLog(&errorLog)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, http.StatusText(500), 500)
@@ -104,7 +115,7 @@ func (env *Env) LogHandler(w http.ResponseWriter, r *http.Request) {
 	errorLog.ID = id
 
 	// Call bot to send message
-	chatID, err := env.ChatID(errorLog.AppName)
+	chatID, err := s.ChatID(errorLog.AppName)
 	if err != nil {
 		log.Println(err)
 		if chatID == 0 {
@@ -114,12 +125,12 @@ func (env *Env) LogHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(500), 500)
 		return
 	}
-	err = env.SendErrorMessage(chatID, &errorLog)
+	err = s.SendErrorMessage(chatID, &errorLog)
 
 	fmt.Fprintf(w, "Success")
 }
 
-func (env *Env) setChatIDHandler(w http.ResponseWriter, r *http.Request) {
+func (s *server) setChatIDHandler(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 
 	var b Chat
@@ -129,7 +140,7 @@ func (env *Env) setChatIDHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = env.SetChatID(&b)
+	err = s.SetChatID(&b)
 	if err != nil {
 		http.Error(w, err.Error(), 400)
 		return
@@ -138,7 +149,7 @@ func (env *Env) setChatIDHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Chat ID succesfully mapped.")
 }
 
-func (env *Env) getLogHandler(w http.ResponseWriter, r *http.Request) {
+func (s *server) getLogHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
@@ -149,7 +160,7 @@ func (env *Env) getLogHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	errLog, err := env.ErrorLog(i)
+	errLog, err := s.ErrorLog(i)
 	if err != nil {
 		log.Println(err)
 		if errLog.ID == 0 {

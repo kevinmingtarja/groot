@@ -6,22 +6,22 @@ import (
 	"os"
 )
 
-func InitializeBot() (*tgbotapi.BotAPI, error) {
+func setupBot() (*tgbotapi.BotAPI, error) {
 	bot, err := tgbotapi.NewBotAPI(os.Getenv("TELEGRAM_API_TOKEN"))
 	if err != nil {
-		return nil, err
+		return bot, err
 	}
 	bot.Debug = true
 
 	return bot, nil
 }
 
-func (env *Env) sendMessage(chatID int, text string) error {
+func (s *server) sendMessage(chatID int, text string) error {
 	// Create new message
 	msg := tgbotapi.NewMessage(int64(chatID), text)
 
 	// Send message
-	_, err := env.Bot.Send(msg)
+	_, err := s.bot.Send(msg)
 	if err != nil {
 		return err
 	}
@@ -29,10 +29,10 @@ func (env *Env) sendMessage(chatID int, text string) error {
 	return nil
 }
 
-func (env *Env) SendErrorMessage(chatID int, e *ErrorLog) error {
+func (s *server) SendErrorMessage(chatID int, e *ErrorLog) error {
 	errorMessage := fmt.Sprintf("Error %d at `%s` endpoint in app `%s`. More details: %s/logs/%d", e.HTTPCode, e.RequestURL, e.AppName, os.Getenv("BASE_URL"), e.ID)
 
-	err := env.sendMessage(chatID, errorMessage)
+	err := s.sendMessage(chatID, errorMessage)
 	if err != nil {
 		return err
 	}

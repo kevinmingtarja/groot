@@ -14,7 +14,7 @@ const (
 	port = 5432
 )
 
-func InitializeDB() (*sql.DB, error) {
+func setupDatabase() (*sql.DB, error) {
 	psqlInfo := fmt.Sprintf(
 		"host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 		host,
@@ -36,10 +36,10 @@ func InitializeDB() (*sql.DB, error) {
 	return db, nil
 }
 
-func (env *Env) ErrorLog(id int) (ErrorLog, error) {
+func (s *server) ErrorLog(id int) (ErrorLog, error) {
 	var errorLog ErrorLog
 
-	row := env.DB.QueryRow("SELECT * FROM error_logs WHERE id = $1", id)
+	row := s.db.QueryRow("SELECT * FROM error_logs WHERE id = $1", id)
 	if err := row.Scan(&errorLog.ID, &errorLog.Time, &errorLog.RequestURL, &errorLog.StackTrace, &errorLog.UserAgent, &errorLog.HTTPCode, &errorLog.AppName, &errorLog.FunctionName); err != nil {
 		if err == sql.ErrNoRows {
 			return errorLog, fmt.Errorf("no error log with given ID found")
@@ -50,10 +50,10 @@ func (env *Env) ErrorLog(id int) (ErrorLog, error) {
 	return errorLog, nil
 }
 
-func (env *Env) ErrorLogByURL(url string) ([]ErrorLog, error) {
+func (s *server) ErrorLogByURL(url string) ([]ErrorLog, error) {
 	logs := []ErrorLog{} // this is to prevent a nil slice which prevents a null response
 
-	rows, err := env.DB.Query("SELECT * FROM error_logs WHERE request_url = $1", url)
+	rows, err := s.db.Query("SELECT * FROM error_logs WHERE request_url = $1", url)
 	if err != nil {
 		return nil, fmt.Errorf("ErrorLogByURL - Query Error: %s", err.Error())
 	}
@@ -70,12 +70,12 @@ func (env *Env) ErrorLogByURL(url string) ([]ErrorLog, error) {
 	return logs, nil
 }
 
-func (env *Env) CreateErrorLog(e *ErrorLog) (int, error) {
+func (s *server) CreateErrorLog(e *ErrorLog) (int, error) {
 	var id int
 
 	query := "INSERT INTO error_logs (time, request_url, stack_trace, user_agent, http_code, app_name, function_name) " +
 		"VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id"
-	err := env.DB.QueryRow(query, time.Now(), e.RequestURL, e.StackTrace, e.UserAgent, e.HTTPCode, e.AppName, e.FunctionName).Scan(&id)
+	err := s.db.QueryRow(query, time.Now(), e.RequestURL, e.StackTrace, e.UserAgent, e.HTTPCode, e.AppName, e.FunctionName).Scan(&id)
 	if err != nil {
 		return id, err
 	}
@@ -83,11 +83,11 @@ func (env *Env) CreateErrorLog(e *ErrorLog) (int, error) {
 	return id, nil
 }
 
-func (env *Env) ChatID(appName string) (int, error) {
+func (s *server) ChatID(appName string) (int, error) {
 	var chatID int
 
 	query := "SELECT chat_id FROM chat_ids WHERE app_name = $1"
-	row := env.DB.QueryRow(query, appName)
+	row := s.db.QueryRow(query, appName)
 	if err := row.Scan(&chatID); err != nil {
 		if err == sql.ErrNoRows {
 			return chatID, fmt.Errorf("no such chat found")
@@ -98,13 +98,13 @@ func (env *Env) ChatID(appName string) (int, error) {
 	return chatID, nil
 }
 
-func (env *Env) SetChatID(c *Chat) error {
+func (s *server) SetChatID(c *Chat) error {
 	if c.AppName == "" {
 		return fmt.Errorf("app_name cannot be empty")
 	}
 
 	query := "INSERT INTO chat_ids (app_name, chat_id) VALUES ($1, $2) ON CONFLICT (app_name) DO UPDATE SET chat_id = $2"
-	_, err := env.DB.Exec(query, c.AppName, c.ChatID)
+	_, err := s.db.Exec(query, c.AppName, c.ChatID)
 	if err != nil {
 		return err
 	}
