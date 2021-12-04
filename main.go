@@ -68,28 +68,35 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleLogsGetByURL() http.HandlerFunc {
+	type request struct {
+		URL string
+	}
+	type response struct {
+		Logs []ErrorLog `json:"logs"`
+	}
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		decoder := json.NewDecoder(r.Body)
 
-		var b struct{ URL string }
-		err := decoder.Decode(&b)
+		var req request
+		err := decoder.Decode(&req)
 		if err != nil {
 			log.Println(err)
 			http.Error(w, http.StatusText(500), 500)
 			return
 		}
-		if b.URL == "" {
+		if req.URL == "" {
 			http.Error(w, http.StatusText(400), 400)
 			return
 		}
 
-		logs, err := s.ErrorLogByURL(b.URL)
+		logs, err := s.ErrorLogByURL(req.URL)
 		if err != nil {
 			log.Println(err)
 			http.Error(w, http.StatusText(500), 500)
 			return
 		}
-		res := LogsResponse{logs}
+		res := response{logs}
 
 		w.Header().Set("Content-Type", "application/json")
 		j, _ := json.Marshal(res)
@@ -98,16 +105,19 @@ func (s *server) handleLogsGetByURL() http.HandlerFunc {
 }
 
 func (s *server) handleLogsCreate() http.HandlerFunc {
+	type request ErrorLog
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		decoder := json.NewDecoder(r.Body)
 
-		var errorLog ErrorLog
-		err := decoder.Decode(&errorLog)
+		var req request
+		err := decoder.Decode(&req)
 		if err != nil {
 			log.Println(err)
 			http.Error(w, http.StatusText(500), 500)
 			return
 		}
+		errorLog := (ErrorLog)(req)
 
 		id, err := s.CreateErrorLog(&errorLog)
 		if err != nil {
@@ -135,17 +145,20 @@ func (s *server) handleLogsCreate() http.HandlerFunc {
 }
 
 func (s *server) handleChatSetID() http.HandlerFunc {
+	type request Chat
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		decoder := json.NewDecoder(r.Body)
 
-		var b Chat
-		err := decoder.Decode(&b)
+		var req request
+		err := decoder.Decode(&req)
 		if err != nil {
 			http.Error(w, http.StatusText(500), 500)
 			return
 		}
+		chat := (Chat)(req)
 
-		err = s.SetChatID(&b)
+		err = s.SetChatID(&chat)
 		if err != nil {
 			http.Error(w, err.Error(), 400)
 			return
@@ -156,6 +169,10 @@ func (s *server) handleChatSetID() http.HandlerFunc {
 }
 
 func (s *server) handleLogsGetByID() http.HandlerFunc {
+	type response struct {
+		Log ErrorLog `json:"log"`
+	}
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		id := vars["id"]
@@ -178,7 +195,7 @@ func (s *server) handleLogsGetByID() http.HandlerFunc {
 			return
 		}
 
-		res := LogResponse{errLog}
+		res := response{errLog}
 		w.Header().Set("Content-Type", "application/json")
 		j, _ := json.Marshal(res)
 		fmt.Fprintf(w, string(j))
