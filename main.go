@@ -81,31 +81,33 @@ func (s *server) handleLogsGetByURL() http.HandlerFunc {
 		var req request
 		err := decoder.Decode(&req)
 		if err != nil {
-			log.Println(err)
-			http.Error(w, http.StatusText(500), 500)
+			respondErr(w, r, err, http.StatusInternalServerError)
 			return
 		}
 		if req.URL == "" {
-			http.Error(w, http.StatusText(400), 400)
+			respondErr(w, r, errors.New("URL cannot be empty"), http.StatusBadRequest)
 			return
 		}
 
 		logs, err := s.ErrorLogByURL(req.URL)
 		if err != nil {
-			log.Println(err)
-			http.Error(w, http.StatusText(500), 500)
+			respondErr(w, r, err, http.StatusInternalServerError)
 			return
 		}
 		res := response{logs}
 
-		w.Header().Set("Content-Type", "application/json")
-		j, _ := json.Marshal(res)
-		fmt.Fprintf(w, string(j))
+		//w.Header().Set("Content-Type", "application/json")
+		//j, _ := json.Marshal(res)
+		//fmt.Fprintf(w, string(j))
+		respond(w, r, res, http.StatusOK)
 	}
 }
 
 func (s *server) handleLogsCreate() http.HandlerFunc {
 	type request ErrorLog
+	type response struct {
+		Status string `json:"status"`
+	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		decoder := json.NewDecoder(r.Body)
@@ -113,16 +115,14 @@ func (s *server) handleLogsCreate() http.HandlerFunc {
 		var req request
 		err := decoder.Decode(&req)
 		if err != nil {
-			log.Println(err)
-			http.Error(w, http.StatusText(500), 500)
+			respondErr(w, r, err, http.StatusInternalServerError)
 			return
 		}
 		errorLog := (ErrorLog)(req)
 
 		id, err := s.CreateErrorLog(&errorLog)
 		if err != nil {
-			log.Println(err)
-			http.Error(w, http.StatusText(500), 500)
+			respondErr(w, r, err, http.StatusInternalServerError)
 			return
 		}
 		errorLog.ID = id
@@ -132,20 +132,31 @@ func (s *server) handleLogsCreate() http.HandlerFunc {
 		if err != nil {
 			log.Println(err)
 			if chatID == 0 {
-				http.Error(w, "No Chat ID under the given app name found. Please map it first using the /chat endpoint.", 400)
+				respondErr(w, r, errors.New("No Chat ID under the given app name found. "+
+					"Please map it first using the /chat endpoint."), http.StatusBadRequest)
 				return
 			}
-			http.Error(w, http.StatusText(500), 500)
+			respondErr(w, r, err, http.StatusInternalServerError)
 			return
 		}
-		err = s.SendErrorMessage(chatID, &errorLog)
 
-		fmt.Fprintf(w, "Success")
+		err = s.SendErrorMessage(chatID, &errorLog)
+		if err != nil {
+			respondErr(w, r, err, http.StatusInternalServerError)
+			return
+		}
+
+		res := response{"Error successfully logged"}
+
+		respond(w, r, res, http.StatusCreated)
 	}
 }
 
 func (s *server) handleChatSetID() http.HandlerFunc {
 	type request Chat
+	type response struct {
+		Status string `json:"status"`
+	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		decoder := json.NewDecoder(r.Body)
@@ -153,18 +164,20 @@ func (s *server) handleChatSetID() http.HandlerFunc {
 		var req request
 		err := decoder.Decode(&req)
 		if err != nil {
-			http.Error(w, http.StatusText(500), 500)
+			respondErr(w, r, err, http.StatusInternalServerError)
 			return
 		}
 		chat := (Chat)(req)
 
 		err = s.SetChatID(&chat)
 		if err != nil {
-			http.Error(w, err.Error(), 400)
+			respondErr(w, r, err, http.StatusBadRequest)
 			return
 		}
 
-		fmt.Fprintf(w, "Chat ID succesfully mapped.")
+		res := response{"Chat ID succesfully mapped"}
+
+		respond(w, r, res, http.StatusOK)
 	}
 }
 
@@ -179,8 +192,7 @@ func (s *server) handleLogsGetByID() http.HandlerFunc {
 
 		i, err := strconv.Atoi(id)
 		if err != nil {
-			log.Println(err)
-			http.Error(w, http.StatusText(400), 400)
+			respondErr(w, r, err, http.StatusBadRequest)
 			return
 		}
 
@@ -188,16 +200,17 @@ func (s *server) handleLogsGetByID() http.HandlerFunc {
 		if err != nil {
 			log.Println(err)
 			if errLog.ID == 0 {
-				http.Error(w, err.Error(), 400)
+				respondErr(w, r, err, http.StatusBadRequest)
 				return
 			}
-			http.Error(w, http.StatusText(500), 500)
+			respondErr(w, r, err, http.StatusInternalServerError)
 			return
 		}
 
 		res := response{errLog}
-		w.Header().Set("Content-Type", "application/json")
-		j, _ := json.Marshal(res)
-		fmt.Fprintf(w, string(j))
+		//w.Header().Set("Content-Type", "application/json")
+		//j, _ := json.Marshal(res)
+		//fmt.Fprintf(w, string(j))
+		respond(w, r, res, http.StatusOK)
 	}
 }
